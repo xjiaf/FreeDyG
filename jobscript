@@ -37,7 +37,7 @@ fi
 run_training() {
     local data=$1
     echo "Starting training on dataset: $data"
-    python train_link_prediction.py --model_name FreeDyG --dataset_name "$data"
+    python train_link_prediction.py --model_name FreeDyG --dataset_name "$data" --num_runs 1 --patch_size 2 --max_input_sequence_length 64
 
     # 检查训练是否成功
     if [ $? -eq 0 ]; then
@@ -52,7 +52,8 @@ run_training() {
 run_evaluation() {
     local data=$1
     echo "Starting evaluation on dataset: $data"
-    python evaluate_link_prediction.py --model_name FreeDyG --dataset_name "$data"
+    python evaluate_link_prediction.py --model_name FreeDyG --dataset_name "$data" --negative_sample_strategy random --num_runs 1
+
 
     # 检查评估是否成功
     if [ $? -eq 0 ]; then
