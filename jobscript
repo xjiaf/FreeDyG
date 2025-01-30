@@ -5,6 +5,7 @@
 # 定义要测试的数据集列表和对应的完整名称
 declare -A dataset_map=(
     ["wikipedia"]="wikipedia"
+    ["wiki"]="wikipedia"
     ["mooc"]="mooc"
     ["uci"]="uci"
     ["social"]="socialevolve_2weeks"
