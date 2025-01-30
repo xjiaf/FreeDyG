@@ -57,14 +57,7 @@ run_training() {
    local model_name=$2
    echo "Starting training on dataset: $data with model: $model_name"
 
-   # 根据不同模型设置不同的训练参数
-   if [ "$model_name" == "FreeDyG" ]; then
-       python train_link_prediction.py --model_name "$model_name" --dataset_name "$data" \
-           --num_runs 1 --patch_size 2 --max_input_sequence_length 64
-   else
-       python train_link_prediction.py --model_name "$model_name" --dataset_name "$data" \
-           --num_runs 1
-   fi
+   python train_link_prediction.py --dataset_name "$data" --model_name "$model_name" --load_best_configs --num_runs 1
 
    # 检查训练是否成功
    if [ $? -eq 0 ]; then
@@ -81,7 +74,7 @@ run_evaluation() {
    local model_name=$2
    echo "Starting evaluation on dataset: $data with model: $model_name"
    python evaluate_link_prediction.py --model_name "$model_name" --dataset_name "$data" \
-       --negative_sample_strategy random --num_runs 1
+       --negative_sample_strategy random --load_best_configs --num_runs 1
 
    # 检查评估是否成功
    if [ $? -eq 0 ]; then
