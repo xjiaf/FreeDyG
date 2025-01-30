@@ -2,7 +2,7 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import random
 import pandas as pd
-
+import os
 
 class CustomizedDataset(Dataset):
     def __init__(self, indices_list: list):
@@ -73,11 +73,23 @@ def get_link_prediction_data(dataset_name: str, val_ratio: float, test_ratio: fl
     :return: node_raw_features, edge_raw_features, (np.ndarray),
             full_data, train_data, val_data, test_data, new_node_val_data, new_node_test_data, (Data object)
     """
-    # Load data and train val test split
-    graph_df = pd.read_csv('./DG_data/{}/ml_{}.csv'.format(dataset_name, dataset_name))
-    edge_raw_features = np.load('./DG_data/{}/ml_{}.npy'.format(dataset_name, dataset_name))
-    node_raw_features = np.load('./DG_data/{}/ml_{}_node.npy'.format(dataset_name, dataset_name))
-   
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(current_dir)
+    data_path = os.path.join(project_root, 'DG_Data', dataset_name)
+
+    # 检查目录是否存在
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"Data directory not found: {data_path}")
+
+    file_path = os.path.join(data_path, f'ml_{dataset_name}.csv')
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"CSV file not found: {file_path}")
+
+    # 读取文件
+    graph_df = pd.read_csv(file_path)
+    edge_raw_features = np.load(os.path.join(data_path, f'ml_{dataset_name}.npy'))
+    node_raw_features = np.load(os.path.join(data_path, f'ml_{dataset_name}_node.npy'))
+
     NODE_FEAT_DIM = EDGE_FEAT_DIM = 172
     assert NODE_FEAT_DIM >= node_raw_features.shape[1], f'Node feature dimension in dataset {dataset_name} is bigger than {NODE_FEAT_DIM}!'
     assert EDGE_FEAT_DIM >= edge_raw_features.shape[1], f'Edge feature dimension in dataset {dataset_name} is bigger than {EDGE_FEAT_DIM}!'
@@ -85,7 +97,7 @@ def get_link_prediction_data(dataset_name: str, val_ratio: float, test_ratio: fl
     if node_raw_features.shape[1] < NODE_FEAT_DIM:
         node_zero_padding = np.zeros((node_raw_features.shape[0], 172 - node_raw_features.shape[1]))
         node_raw_features = np.concatenate([node_raw_features, node_zero_padding], axis=1)
-  
+
 
 
     if edge_raw_features.shape[1] < EDGE_FEAT_DIM:
