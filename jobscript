@@ -4,64 +4,93 @@
 
 # 定义要测试的数据集列表和对应的完整名称
 declare -A dataset_map=(
-    ["wikipedia"]="wikipedia"
-    ["wiki"]="wikipedia"
-    ["mooc"]="mooc"
-    ["uci"]="uci"
-    ["social"]="socialevolve_2weeks"
-    ["socialevolve_2weeks"]="socialevolve_2weeks"
+   ["wikipedia"]="wikipedia"
+   ["wiki"]="wikipedia"
+   ["mooc"]="mooc"
+   ["uci"]="uci"
+   ["social"]="socialevolve_2weeks"
+   ["socialevolve_2weeks"]="socialevolve_2weeks"
+)
+
+# 定义模型列表和对应的参数
+declare -A model_map=(
+   ["freedyg"]="FreeDyG"
+   ["FreeDyG"]="FreeDyG"
+   ["former"]="DyGFormer"
+   ["DyGFormer"]="DyGFormer"
+   ["mixer"]="GraphMixer"
+   ["GraphMixer"]="GraphMixer"
 )
 
 # 显示使用说明的函数
 usage() {
-    printf "Usage: %s <dataset>\n" "$0" >&2
-    printf "Dataset options: wikipedia, mooc, uci, social (or socialevolve_2weeks)\n" >&2
-    exit 1
+   printf "Usage: %s <dataset> <model>\n" "$0" >&2
+   printf "Dataset options: wikipedia (wiki), mooc, uci, social (or socialevolve_2weeks)\n" >&2
+   printf "Model options: freedyg (FreeDyG), former (DyGFormer), mixer (GraphMixer)\n" >&2
+   exit 1
 }
 
 # 检查是否提供了正确数量的参数
-if [ $# -lt 1 ]; then
-    usage
+if [ $# -lt 2 ]; then
+   usage
 fi
 
-# 验证输入的数据集并获取完整名称
+# 验证输入的数据集和模型并获取完整名称
 input_dataset=$1
+input_model=$2
 dataset=${dataset_map[$input_dataset]}
+model=${model_map[$input_model]}
 
-# 验证数据集名称
+# 验证数据集和模型名称
 if [ -z "$dataset" ]; then
-    printf "Error: Invalid dataset name. Use one of: wikipedia, mooc, uci, social (or socialevolve_2weeks)\n" >&2
-    exit 1
+   printf "Error: Invalid dataset name. Use one of: wikipedia (wiki), mooc, uci, social (or socialevolve_2weeks)\n" >&2
+   exit 1
+fi
+
+if [ -z "$model" ]; then
+   printf "Error: Invalid model name. Use one of: freedyg (FreeDyG), former (DyGFormer), mixer (GraphMixer)\n" >&2
+   exit 1
 fi
 
 run_training() {
-    local data=$1
-    echo "Starting training on dataset: $data"
-    python train_link_prediction.py --model_name FreeDyG --dataset_name "$data"
+   local data=$1
+   local model_name=$2
+   echo "Starting training on dataset: $data with model: $model_name"
 
-    # 检查训练是否成功
-    if [ $? -eq 0 ]; then
-        echo "Training completed successfully"
-        return 0
-    else
-        echo "Training failed"
-        return 1
-    fi
+   # 根据不同模型设置不同的训练参数
+   if [ "$model_name" == "FreeDyG" ]; then
+       python train_link_prediction.py --model_name "$model_name" --dataset_name "$data" \
+           --num_runs 1 --patch_size 2 --max_input_sequence_length 64
+   else
+       python train_link_prediction.py --model_name "$model_name" --dataset_name "$data" \
+           --num_runs 1
+   fi
+
+   # 检查训练是否成功
+   if [ $? -eq 0 ]; then
+       echo "Training completed successfully"
+       return 0
+   else
+       echo "Training failed"
+       return 1
+   fi
 }
 
 run_evaluation() {
-    local data=$1
-    echo "Starting evaluation on dataset: $data"
-    python evaluate_link_prediction.py --model_name FreeDyG --dataset_name "$data"
+   local data=$1
+   local model_name=$2
+   echo "Starting evaluation on dataset: $data with model: $model_name"
+   python evaluate_link_prediction.py --model_name "$model_name" --dataset_name "$data" \
+       --negative_sample_strategy random --num_runs 1
 
-    # 检查评估是否成功
-    if [ $? -eq 0 ]; then
-        echo "Evaluation completed successfully"
-        return 0
-    else
-        echo "Evaluation failed"
-        return 1
-    fi
+   # 检查评估是否成功
+   if [ $? -eq 0 ]; then
+       echo "Evaluation completed successfully"
+       return 0
+   else
+       echo "Evaluation failed"
+       return 1
+   fi
 }
 
 # 激活conda环境
@@ -74,33 +103,33 @@ cp -r ~/scratch/FreeDyG/ $TMPDIR
 cd $TMPDIR/FreeDyG/
 
 # 运行训练
-run_training $dataset
+run_training $dataset $model
 training_status=$?
 
 # 如果训练成功，则运行评估
 if [ $training_status -eq 0 ]; then
-    run_evaluation $dataset
-    evaluation_status=$?
+   run_evaluation $dataset $model
+   evaluation_status=$?
 else
-    echo "Skipping evaluation due to training failure"
-    evaluation_status=1
+   echo "Skipping evaluation due to training failure"
+   evaluation_status=1
 fi
 
 # 将结果复制回原始目录
 rsync -av --progress \
-    --exclude 'jobscript.e*' \
-    --exclude 'jobscript.o*' \
-    "$TMPDIR/FreeDyG/" ~/scratch/FreeDyG/
+   --exclude 'jobscript.e*' \
+   --exclude 'jobscript.o*' \
+   "$TMPDIR/FreeDyG/" ~/scratch/FreeDyG/
 
 # 休眠几秒确保文件同步
 sleep 3
 
 # 输出最终状态
 if [ $training_status -eq 0 ] && [ $evaluation_status -eq 0 ]; then
-    echo "Both training and evaluation completed successfully"
+   echo "Both training and evaluation completed successfully"
 else
-    echo "Process completed with errors"
-    exit 1
+   echo "Process completed with errors"
+   exit 1
 fi
 
 #$ -m ea
